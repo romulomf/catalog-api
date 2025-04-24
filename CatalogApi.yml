@@ -1,0 +1,106 @@
+﻿openapi: 3.0.3
+info:
+  title: Catalog Api
+  description: >
+    Esta é a documentação do catálogo de APIs REST do curso de Web APIs com .NET e C#
+  version: 0.1.0
+  contact:
+    name: Rômulo Machado Flores
+    email: romuloflores@gmail.com
+servers:
+  - url: http://localhost:5000/api
+    description: Local
+components:
+  parameters:
+    pageQueryParam:
+      name: page
+      in: query
+      required: true
+      schema:
+        type: integer
+    sizeQueryParam:
+      name: size
+      in: query
+      required: true
+      schema:
+        type: integer
+  schemas:
+    category:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        imageUrl:
+          type: string
+      required: [id, name]
+    product:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        imageUrl:
+          type: string
+        stock:
+          type: number
+        registrationDate:
+          type: string
+          format: date
+paths:
+  /category:
+    parameters:
+      - name: categoryId
+        description: O id da categoria
+        in: path
+        schema:
+          type: integer
+    get:
+      responses:
+        '200':
+          description: A lista com as categorias
+          content:
+            application/json:
+              schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/category'
+              examples:
+                all-categories-data:
+                  summary: Exemplo de listagem das categorias
+                  value:
+                    - id: 1
+                      name: Bebidas
+                      imageUrl: bebidas.jpg
+                    - id: 2
+                      name: Lanches
+                      imageUrl: lanches.jpg
+                    - id: 3
+                      name: Sobremesas.jpg
+                      imageUrl: sobremesas.jpg
+                single-category-data:
+                  summary: Exemplo do retorno de categoria única
+                  value:
+                    - id: 1
+                      name: Bebidas
+                      imageUrl: bebidas.jpg
+  /category/pagination:
+    parameters:
+      - $ref: "#/components/parameters/pageQueryParam"
+      - $ref: "#/components/parameters/sizeQueryParam"
+    get:
+      responses:
+        '200':
+          description: A lista de categorias na página e tamanho especificados
+          content:
+            application/json:
+              schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/category'
