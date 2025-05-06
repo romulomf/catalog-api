@@ -5,26 +5,29 @@ using CatalogApi.Models;
 using CatalogApi.Pagination;
 using CatalogApi.Repositories;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Formatters;
+using Microsoft.Extensions.Caching.Memory;
 using Newtonsoft.Json;
 using System.Net.Mime;
 using X.PagedList;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Http.HttpResults;
 
 namespace CatalogApi.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
 [ApiExplorerSettings(IgnoreApi = true)]
-public class CategoryController(ILogger<CategoryController> logger, IUnityOfWork unityOfWork, IMapper mapper) : ControllerBase
+public class CategoryController(ILogger<CategoryController> logger, IUnityOfWork unityOfWork, IMapper mapper, IMemoryCache cache) : ControllerBase
 {
 	private readonly ILogger<CategoryController> _logger = logger;
 
 	private readonly IUnityOfWork _unityOfWork = unityOfWork;
 
 	private readonly IMapper _mapper = mapper;
+
+	private readonly IMemoryCache _cache = cache;
+
+	private const string CacheCategoriesKey = "CacheCategories";
 
 	private IEnumerable<CategoryDto> Paginate(IPagedList<Category> categories)
 	{
@@ -42,6 +45,30 @@ public class CategoryController(ILogger<CategoryController> logger, IUnityOfWork
 		return _mapper.Map<IEnumerable<CategoryDto>>(categories);
 	}
 
+	private static string GetCategoryCacheKey(int id) => $"CacheCategory_{id}";
+
+	private void SetCache<T>(string key, T data)
+	{
+		var cacheOptions = new MemoryCacheEntryOptions
+		{
+			AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(30),
+			SlidingExpiration = TimeSpan.FromSeconds(15),
+			Priority = CacheItemPriority.High
+		};
+		_cache.Set(key, data, cacheOptions);
+	}
+
+	private void InvalidateCacheAfterChange(int id, Category? category = null)
+	{
+		var cacheCategoryKey = GetCategoryCacheKey(id);
+		_cache.Remove(CacheCategoriesKey);
+		_cache.Remove(cacheCategoryKey);
+		if (category is not null)
+		{
+			SetCache(cacheCategoryKey, category);
+		}
+	}
+
 	[EndpointSummary("Obtém as categorias")]
 	[EndpointDescription("Obtém todas as categorias")]
 	[Authorize]
@@ -49,7 +76,14 @@ public class CategoryController(ILogger<CategoryController> logger, IUnityOfWork
 	[ServiceFilter(typeof(ApiLoggingFilter))]
 	public async Task<ActionResult<IEnumerable<CategoryDto>>> GetAsync()
 	{
-		var categories = await _unityOfWork.CategoryRepository.GetAllAsync();
+		if (!_cache.TryGetValue(CacheCategoriesKey, out IEnumerable<Category>? categories))
+		{
+			categories = await _unityOfWork.CategoryRepository.GetAllAsync();
+			if (categories is not null && categories.Any())
+			{
+				SetCache(CacheCategoriesKey, categories);
+			}
+		}
 		return Ok(_mapper.Map<IEnumerable<CategoryDto>>(categories));
 	}
 
@@ -76,10 +110,15 @@ public class CategoryController(ILogger<CategoryController> logger, IUnityOfWork
 	[HttpGet("{id:int}", Name = "GetCategoryById")]
 	public async Task<ActionResult<CategoryDto>> Get(int id)
 	{
-		var category = await _unityOfWork.CategoryRepository.GetAsync(c => c.Id == id);
-		if (category is null)
+		string cacheCategoryKey = GetCategoryCacheKey(id);
+		if (!_cache.TryGetValue(cacheCategoryKey, out Category? category))
 		{
-			return NotFound("Category not found");
+			category = await _unityOfWork.CategoryRepository.GetAsync(c => c.Id == id);
+			if (category is null)
+			{
+				return NotFound("Category not found");
+			}
+			SetCache(cacheCategoryKey, category);
 		}
 		return Ok(_mapper.Map<CategoryDto>(category));
 	}
@@ -100,6 +139,8 @@ public class CategoryController(ILogger<CategoryController> logger, IUnityOfWork
 		var category = _unityOfWork.CategoryRepository.Create(_mapper.Map<Category>(dto));
 		_unityOfWork.CommitAsync();
 
+		InvalidateCacheAfterChange(category.Id, category);
+
 		return new CreatedAtRouteResult("GetCategoryById", _mapper.Map<CategoryDto>(category));
 	}
 
@@ -117,6 +158,9 @@ public class CategoryController(ILogger<CategoryController> logger, IUnityOfWork
 		}
 		var category = _unityOfWork.CategoryRepository.Update(_mapper.Map<Category>(dto));
 		_unityOfWork.CommitAsync();
+
+		InvalidateCacheAfterChange(category.Id, category);
+
 		return Ok(_mapper.Map<CategoryDto>(category));
 	}
 
@@ -134,8 +178,12 @@ public class CategoryController(ILogger<CategoryController> logger, IUnityOfWork
 		{
 			return NotFound();
 		}
+
 		category = _unityOfWork.CategoryRepository.Delete(category);
 		await _unityOfWork.CommitAsync();
+
+		InvalidateCacheAfterChange(id);
+
 		return Ok(_mapper.Map<CategoryDto>(category));
 	}
 }

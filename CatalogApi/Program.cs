@@ -36,7 +36,7 @@ builder.Services.AddApiVersioning(avo =>
 	ae.SubstituteApiVersionInUrl = true;
 });
 
-// Add services to the container.
+// configuração da open api
 builder.Services.AddOpenApi("v1", openApiOptions => {
 	openApiOptions.OpenApiVersion = OpenApiSpecVersion.OpenApi3_0;
 	openApiOptions.AddDocumentTransformer((document, context, cancellationToken) => {
@@ -52,7 +52,7 @@ builder.Services.AddOpenApi("v1", openApiOptions => {
 builder.Services.AddScoped<ApiLoggingFilter>();
 builder.Services.AddScoped<ITokenService, TokenService>();
 
-// repositories
+// registro dos repositórios para o container de injeção de dependência
 builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
 builder.Services.AddScoped<IProductRepository, ProductRepository>();
 builder.Services.AddScoped<IUnityOfWork, UnitOfWork>();
@@ -60,6 +60,11 @@ builder.Services.AddScoped<IUnityOfWork, UnitOfWork>();
 builder.Services.AddDbContext<CatalogApiDbContext>(options =>
 	options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")).EnableSensitiveDataLogging(true)
 );
+
+builder.Services.AddMemoryCache(options => {
+	// determina o tamanho em unidades do cache.
+	options.SizeLimit = 5120;
+});
 
 builder.Services
 	.AddControllers(options => options.Filters.Add<ApiExceptionFilter>())
