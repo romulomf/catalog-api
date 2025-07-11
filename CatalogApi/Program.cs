@@ -71,7 +71,7 @@ builder.Services
 	.AddJsonOptions(options => options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles)
 	.AddNewtonsoftJson();
 
-builder.Services.AddAutoMapper(typeof(DtoMappingProfile));
+builder.Services.AddAutoMapper(configuration => configuration.AddProfile<DtoMappingProfile>());
 
 builder.Services.AddCors(options => options.AddDefaultPolicy(policy => policy.WithOrigins("https://apirequest.io").WithMethods("GET", "POST").AllowAnyHeader().AllowCredentials()));
 
