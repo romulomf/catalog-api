@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Newtonsoft.Json;
+using System.Net.Mime;
 using X.PagedList;
 
 namespace CatalogApi.Controllers;
@@ -36,6 +37,10 @@ public class ProductController(IUnityOfWork unityOfWork, IMapper mapper) : Contr
 		return _mapper.Map<IEnumerable<ProductDto>>(products);
 	}
 
+	[EndpointSummary("Obtém os produtos")]
+	[EndpointDescription("Obtém todos os produtos")]
+	[ProducesResponseType(typeof(IEnumerable<ProductDto>), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
 	[Authorize(Policy = "UserOnly")]
 	[HttpGet]
 	public ActionResult<IEnumerable<ProductDto>> Get()
@@ -62,6 +67,11 @@ public class ProductController(IUnityOfWork unityOfWork, IMapper mapper) : Contr
 		return Ok(Paginate(products));
 	}
 
+	[EndpointSummary("Obtém um produto")]
+	[EndpointDescription("Obtém um produto através do id")]
+	[ProducesResponseType(typeof(ProductDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	[ProducesDefaultResponseType]
 	[HttpGet("{id:int}", Name = "GetProductById")]
 	public async Task<ActionResult<ProductDto>> Get(int id)
 	{
@@ -74,6 +84,12 @@ public class ProductController(IUnityOfWork unityOfWork, IMapper mapper) : Contr
 		return Ok(dto);
 	}
 
+	[EndpointSummary("Cria um produto")]
+	[EndpointDescription("Cria um novo produto")]
+	[Produces(MediaTypeNames.Application.Json)]
+	[ProducesResponseType(typeof(ProductDto), StatusCodes.Status201Created)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	[ProducesDefaultResponseType]
 	[HttpPost]
 	public ActionResult<ProductDto> Post(ProductDto dto)
 	{
@@ -86,6 +102,11 @@ public class ProductController(IUnityOfWork unityOfWork, IMapper mapper) : Contr
 		return new CreatedAtRouteResult("GetProductById", _mapper.Map<ProductDto>(product));
 	}
 
+	[EndpointSummary("Edita um produto")]
+	[EndpointDescription("Edita um produto existente")]
+	[ProducesResponseType(typeof(ProductDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status400BadRequest)]
+	[ProducesDefaultResponseType]
 	[HttpPut]
 	public ActionResult<ProductDto> Put([BindRequired] ProductDto dto)
 	{
@@ -98,6 +119,11 @@ public class ProductController(IUnityOfWork unityOfWork, IMapper mapper) : Contr
 		return Ok(dto);
 	}
 
+	[EndpointSummary("Exclui um produto")]
+	[EndpointDescription("Exclui um produto existente")]
+	[ProducesResponseType(typeof(ProductDto), StatusCodes.Status200OK)]
+	[ProducesResponseType(StatusCodes.Status404NotFound)]
+	[ProducesDefaultResponseType]
 	[HttpDelete("{id:int}")]
 	public async Task<ActionResult<ProductDto>> DeleteAsync(int id)
 	{
