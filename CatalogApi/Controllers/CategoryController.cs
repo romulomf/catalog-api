@@ -53,7 +53,8 @@ public class CategoryController(ILogger<CategoryController> logger, IUnityOfWork
 		{
 			AbsoluteExpirationRelativeToNow = TimeSpan.FromSeconds(30),
 			SlidingExpiration = TimeSpan.FromSeconds(15),
-			Priority = CacheItemPriority.High
+			Priority = CacheItemPriority.High,
+			Size = data is IEnumerable<Category> collection ? collection.Count() : 1
 		};
 		_cache.Set(key, data, cacheOptions);
 	}
@@ -71,7 +72,6 @@ public class CategoryController(ILogger<CategoryController> logger, IUnityOfWork
 
 	[EndpointSummary("Obtém as categorias")]
 	[EndpointDescription("Obtém todas as categorias")]
-	[Authorize]
 	[HttpGet]
 	[ServiceFilter(typeof(ApiLoggingFilter))]
 	public async Task<ActionResult<IEnumerable<CategoryDto>>> GetAsync()
